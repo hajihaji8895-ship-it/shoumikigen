@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>賞味期限管理アプリ</title>
+  <style>
+    body { font-family: sans-serif; margin: 15px; background: #f4f6f8; color: #333; }
+    h1 { font-size: 1.3rem; text-align: center; color: #2c3e50; }
+    .card { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
+    input[type="text"], input[type="date"] { width: 100%; padding: 8px; box-sizing: border-box; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
+    .btn-add { width: 100%; padding: 12px; background: #3498db; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+    .btn-add:active { background: #2980b9; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #ecf0f1; }
+    .alert-danger { background-color: #fadbd8; color: #900c3f; font-weight: bold; }
+    .alert-warning { background-color: #fcf3cf; color: #7d6608; font-weight: bold; }
+    .btn-delete { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+    .quick-btns { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
+    .btn-quick { background: #ecf0f1; border: 1px solid #bdc3c7; padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; }
+    .btn-quick:active { background: #d5dbdb; }
+    /* 広告エリア用のスタイル */
+    .ad-section { text-align: center; padding: 10px 0; overflow: hidden; }
+    .ad-title { font-size: 0.8rem; color: #888; margin-bottom: 5px; text-align: left; }
+  </style>
+</head>
+<body>
+
+  <h1>🍅 賞味期限管理アプリ</h1>
+
+  <div class="card">
+    <label for="itemName">食材の名前:</label>
+    <input type="text" id="itemName" placeholder="例: 牛乳、卵など">
+    
+    <!-- よく使う食材のクイックボタン -->
+    <div class="quick-btns">
+      <button type="button" class="btn-quick" onclick="setQuickName('牛乳')">牛乳</button>
+      <button type="button" class="btn-quick" onclick="setQuickName('卵')">卵</button>
+      <button type="button" class="btn-quick" onclick="setQuickName('豆腐')">豆腐</button>
+      <button type="button" class="btn-quick" onclick="setQuickName('豚肉')">豚肉</button>
+      <button type="button" class="btn-quick" onclick="setQuickName('キャベツ')">キャベツ</button>
+    </div>
+
+    <label for="itemDate">賞味期限:</label>
+    <input type="date" id="itemDate">
+
+    <button class="btn-add" onclick="addItem()">リストに追加する</button>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size: 1.1rem; margin-top:0;">登録されている食材一覧</h2>
+    <table id="itemTable">
+      <thead>
+        <tr>
+          <th>食材名</th>
+          <th>賞味期限</th>
+          <th>状態</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="itemTableBody">
+        <!-- JSで動的に追加されます -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 広告枠1 -->
+  <div class="card ad-section">
+    <div class="ad-title">おすすめ情報</div>
+    <a href="https://px.a8.net/svt/ejp?a8mat=4BE68L+BX9KPM+544C+5ZMCH" rel="nofollow">
+    <img border="0" width="300" height="250" alt="" src="https://www23.a8.net/svt/bgt?aid=261001749721&wid=002&eno=01&mid=s00000023862001006000&mc=1"></a>
+    <img border="0" width="1" height="1" src="https://www12.a8.net/0.gif?a8mat=4BE68L+BX9KPM+544C+5ZMCH" alt="">
+  </div>
+
+  <!-- 広告枠2 -->
+  <div class="card ad-section">
+    <div class="ad-title">おすすめ情報</div>
+    <a href="https://px.a8.net/svt/ejp?a8mat=4BE68L+BG0062+1ZWM+CA67L" rel="nofollow">
+    <img border="0" width="300" height="250" alt="" src="https://www25.a8.net/svt/bgt?aid=261001749692&wid=002&eno=01&mid=s00000009319002063000&mc=1"></a>
+    <img border="0" width="1" height="1" src="https://www18.a8.net/0.gif?a8mat=4BE68L+BG0062+1ZWM+CA67L" alt="">
+  </div>
+
+  <script>
+    let items = JSON.parse(localStorage.getItem('shomikigen_items')) || [];
+
+    // クイックボタンで名前を自動入力する
+    function setQuickName(name) {
+      document.getElementById('itemName').value = name;
+    }
+
+    function renderItems() {
+      const tbody = document.getElementById('itemTableBody');
+      tbody.innerHTML = '';
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      items.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        
+        const expDate = new Date(item.date);
+        expDate.setHours(0, 0, 0, 0);
+
+        const diffTime = expDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        let statusText = '';
+        let rowClass = '';
+
+        if (diffDays < 0) {
+          statusText = '❌ 期限切れ';
+          rowClass = 'alert-danger';
+        } else if (diffDays <= 3) {
+          statusText = `⚠️ あと ${diffDays} 日`;
+          rowClass = 'alert-warning';
+        } else {
+          statusText = `あと ${diffDays} 日`;
+        }
+
+        tr.className = rowClass;
+        tr.innerHTML = `
+          <td>${item.name}</td>
+          <td>${item.date}</td>
+          <td>${statusText}</td>
+          <td><button class="btn-delete" onclick="deleteItem(${index})">削除</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function addItem() {
+      const name = document.getElementById('itemName').value.trim();
+      const date = document.getElementById('itemDate').value;
+
+      if (!name || !date) {
+        alert('食材名と賞味期限の両方を入力してください');
+        return;
+      }
+
+      items.push({ name: name, date: date });
+      items.sort((a, b) => new Date(a.date) - new Date(b.date)); // 期限が近い順に並び替え
+      
+      localStorage.setItem('shomikigen_items', JSON.stringify(items));
+
+      document.getElementById('itemName').value = '';
+      document.getElementById('itemDate').value = '';
+      renderItems();
+    }
+
+    function deleteItem(index) {
+      items.splice(index, 1);
+      localStorage.setItem('shomikigen_items', JSON.stringify(items));
+      renderItems();
+    }
+
+    // 初回読み込み時に表示を更新
+    renderItems();
+  </script>
+<!-- 関連ツールリンクエリア --><div style="margin-top: 30px; padding: 15px; background-color: #f9f9f9; border-radius: 8px;">
+  <h3 style="font-size: 16px; margin-bottom: 10px;">便利な関連ツール</h3>
+  <ul style="list-style: none; padding-left: 0; line-height: 1.8;">
+    <li>👉 <a href="https://konetu.pages.dev/">光熱費管理</a></li>
+    <li>👉 <a href="https://kaimono-4nt.pages.dev/">買い物リスト</a></li>
+    <li>👉 <a href="https://poinnto.pages.dev/">ポイ活管理</a></li>
+    <li>👉 <a href="https://souji-aap.pages.dev/">掃除管理</a></li>
+    <li>👉 <a href="https://running-29c.pages.dev/">ランニング記録</a></li>
+  </ul></div>
+</body>
+</html>
